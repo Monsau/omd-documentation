@@ -13,7 +13,7 @@ flowchart LR
 	AF[Activity Feed] --> C[Comments]
 	AF --> T[Tasks]
 	AF --> P[Proposals]
-	C --> @[@Mentions]
+	C --> M["@Mentions"]
 	T --> A[Assignees]
 ```
 
