@@ -1,34 +1,115 @@
-﻿# OpenMetadata - Custom Connector Development
+﻿# Custom Connector Development (v1.10.3)
 
-## Overview
+Build a connector to ingest metadata from a system not yet supported natively.
 
-*This comprehensive guide is currently under development.*
+Related: [APIs & Integration](../../03-technical-deep-dive/apis-integration.md) · [Pipeline Connectors](./pipeline-connectors.md)
 
-This document will cover:
-- Key concepts and features
-- Step-by-step instructions
-- Best practices and recommendations
-- Real-world examples
-- Troubleshooting tips
+Last updated: October 29, 2025
 
-## Quick Start
+## Design goals
 
-For immediate guidance, please refer to:
-- [Official Documentation](https://docs.open-metadata.org)
-- [Getting Started Guide](../06-user-guides/getting-started.md)
-- [FAQ](../10-reference/faq.md)
+```mermaid
+flowchart LR
+	SRC[Source System] --> MAP[Mapper]
+	MAP --> ENT[OM Entities]
+	ENT --> POST[REST/SDK]
+	POST --> OM[OpenMetadata]
+```
 
-## Related Documentation
+- Minimal, testable code
+- Idempotent: reruns don’t duplicate entities
+- Fault-tolerant with retries/backoff
 
-See also:
-- [Product Overview](../02-product-overview/product-introduction.md)
-- [Technical Architecture](../03-technical-deep-dive/architecture-detailed.md)
-- [SDK Reference](../08-sdk-reference/README.md)
+## Entities to map
+
+- Services (create once)
+- Datasets/tables/dashboards/pipelines
+- Owners, tags, glossary terms
+- Lineage edges
+
+## Quickstart (Python ingestion framework)
+
+1) Scaffold a source plugin
+
+```bash
+pip install openmetadata-ingestion
+openmetadata-ingestion scaffold source mysource
+```
+
+2) Implement the Source class
+
+```python
+from metadata.ingestion.api.source import Source
+from metadata.ingestion.api.models import Either, WorkflowContext
+
+class MySource(Source):
+		def __init__(self, config, metadata):
+				super().__init__()
+				self.config = config
+				self.metadata = metadata
+
+		def prepare(self):
+				# connect to APIs
+				...
+
+		def next_record(self) -> Either:
+				# yield CreateTableRequest / CreateDashboardRequest / ...
+				for obj in self._list_objects():
+						yield self._to_request(obj)
+```
+
+3) Emit lineage
+
+```python
+from metadata.generated.schema.api.lineage.addLineage import AddLineageRequest
+
+edge = AddLineageRequest(edge={
+	"fromEntity": {"type": "table", "fullyQualifiedName": "src.db.schema.table"},
+	"toEntity":   {"type": "table", "fullyQualifiedName": "tgt.db.schema.table"}
+})
+self.metadata.add_lineage(edge)
+```
+
+4) Run via YAML workflow
+
+```yaml
+source:
+	type: mysource
+	serviceName: my_service
+	serviceConnection:
+		config:
+			type: MySource
+			apiKey: ${MYSOURCE_KEY}
+sink:
+	type: metadata-rest
+workflowConfig:
+	openMetadataServerConfig:
+		hostPort: https://metadata.example.com
+```
+
+## REST-first alternative
+
+- For simple systems, call OM REST APIs directly to create services/entities and lineage
+- Use upsert patterns and retrieve-by-FQN to avoid duplicates
+
+## Testing & validation
+
+- Unit-test mappers with fixture payloads
+- Dry-run workflows and compare entity counts
+- Validate lineage visually in the UI
+
+## Operational concerns
+
+- Secrets via env or secret manager
+- Rate limits: throttle and cache
+- Observability: metrics/logs for success/fail counts
+
+## Troubleshooting
+
+- 409 conflicts: fetch latest entity version then retry PATCH
+- Duplicates: ensure consistent FQNs and use get-or-create
+- Timeouts: backoff and smaller batch sizes
 
 ---
 
-**Status**: Under Development  
-**Last Updated**: October 29, 2025  
-**OpenMetadata Version**: 1.10.3
-
-**Contribute**: Help us improve this documentation! Visit [GitHub](https://github.com/Monsau/omd-documentation)
+Next: See [APIs & Integration](../../03-technical-deep-dive/apis-integration.md) for entity schemas and examples.
