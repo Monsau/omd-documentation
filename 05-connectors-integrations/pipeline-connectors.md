@@ -1,20 +1,4 @@
-﻿# OpenMetadata - Pipeline & ETL Connectors
-
-## Overview
-
-*This comprehensive guide is currently under development.*
-
-This document will cover:
-
-## Quick Start
-
-For immediate guidance, please refer to:
-
-## Related Documentation
-
-See also:
-
-# Pipeline & ETL Connectors (v1.10.3)
+﻿# Pipeline & ETL Connectors (v1.10.3)
 
 Ingest pipeline metadata (DAGs, tasks, jobs, runs, owners, lineage) from orchestration and ELT tools into OpenMetadata.
 
